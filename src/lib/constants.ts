@@ -30,10 +30,13 @@ export const LOWER_TEETH = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 
 
 export const MATERIAL_OPTIONS: {
   group: string;
+  /** Groups in the same exclusive set share one selection across sides */
+  exclusiveSet: "material" | "restaurim";
   items: { key: MaterialKey; label: string; hint?: string }[];
 }[] = [
   {
     group: "Zirkon, LD & Porcelan",
+    exclusiveSet: "material",
     items: [
       { key: "zirkonPorcelan", label: "Zirkon & Porcelan", hint: "Shtresim Pro" },
       { key: "fullZirkonMulti", label: "Full Zirkon Multi Layer", hint: "(max 3 dhëmbë urë)" },
@@ -44,6 +47,7 @@ export const MATERIAL_OPTIONS: {
   },
   {
     group: "Metal Porcelan",
+    exclusiveSet: "material",
     items: [
       { key: "metalPro", label: "Pro*" },
       { key: "metalBazik", label: "Bazik" },
@@ -51,6 +55,7 @@ export const MATERIAL_OPTIONS: {
   },
   {
     group: "Restaurimi",
+    exclusiveSet: "restaurim",
     items: [
       { key: "kuroraUra", label: "Kurora Ura" },
       { key: "feldspathic", label: "Feldspathic veneers" },
@@ -60,6 +65,7 @@ export const MATERIAL_OPTIONS: {
   },
   {
     group: "Të tjera",
+    exclusiveSet: "restaurim",
     items: [
       { key: "pmma", label: "PMMA" },
       { key: "waxUp", label: "WaxUp" },
@@ -67,6 +73,15 @@ export const MATERIAL_OPTIONS: {
     ],
   },
 ];
+
+/** All material keys that belong to the same exclusive set as `group`. */
+export function exclusiveKeysForSet(
+  exclusiveSet: "material" | "restaurim",
+): MaterialKey[] {
+  return MATERIAL_OPTIONS.filter((g) => g.exclusiveSet === exclusiveSet).flatMap(
+    (g) => g.items.map((i) => i.key),
+  );
+}
 
 export const MATERIAL_LABELS: Record<MaterialKey, string> = Object.fromEntries(
   MATERIAL_OPTIONS.flatMap((g) => g.items.map((i) => [i.key, i.label])),

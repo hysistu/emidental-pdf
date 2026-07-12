@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ToothChart } from "./ToothChart";
 import { ImageUploadField, IMAGE_MAX_BYTES } from "./ImageUploadField";
 import { EMPTY_ORDER, type MaterialKey, type OrderFormData } from "@/lib/types";
-import { MATERIAL_OPTIONS, SHADE_PRESETS } from "@/lib/constants";
+import { MATERIAL_OPTIONS, SHADE_PRESETS, exclusiveKeysForSet } from "@/lib/constants";
 import { orderSchema } from "@/lib/schema";
 
 function todayISO() {
@@ -133,12 +133,13 @@ export function OrderForm() {
   };
 
   const selectMaterialInGroup = (
-    groupKeys: MaterialKey[],
+    exclusiveSet: "material" | "restaurim",
     key: MaterialKey,
   ) => {
     const next = new Set(materialSet);
-    for (const k of groupKeys) next.delete(k);
-    // Clicking the active option again clears it (optional fields)
+    // Clear both sides of this exclusive pair (e.g. Zirkon + Metal)
+    for (const k of exclusiveKeysForSet(exclusiveSet)) next.delete(k);
+    // Clicking the active option again clears it (optional)
     if (!materialSet.has(key)) next.add(key);
     update("materials", [...next] as MaterialKey[]);
   };
@@ -357,9 +358,7 @@ export function OrderForm() {
         delay={0.06}
       >
         <div className="grid gap-5 md:grid-cols-2">
-          {MATERIAL_OPTIONS.map((group) => {
-            const groupKeys = group.items.map((i) => i.key);
-            return (
+          {MATERIAL_OPTIONS.map((group) => (
               <div
                 key={group.group}
                 className="space-y-2.5"
@@ -387,15 +386,14 @@ export function OrderForm() {
                       >
                         <input
                           type="radio"
-                          name={`material-${group.group}`}
+                          name={`material-set-${group.exclusiveSet}`}
                           checked={active}
                           onChange={() =>
-                            selectMaterialInGroup(groupKeys, item.key)
+                            selectMaterialInGroup(group.exclusiveSet, item.key)
                           }
                           onClick={() => {
-                            // Allow deselect when clicking the already-selected radio
                             if (active)
-                              selectMaterialInGroup(groupKeys, item.key);
+                              selectMaterialInGroup(group.exclusiveSet, item.key);
                           }}
                           className="mt-1 size-4 accent-[var(--brand)]"
                         />
@@ -414,8 +412,7 @@ export function OrderForm() {
                   })}
                 </div>
               </div>
-            );
-          })}
+            ))}
         </div>
 
         <div>
