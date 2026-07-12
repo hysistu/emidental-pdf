@@ -44,6 +44,10 @@ export const orderSchema = z.object({
   contactPhone: z.string().optional().default(""),
   hasRetractedImage: z.boolean().optional().default(false),
   hasSmileImage: z.boolean().optional().default(false),
+  hasUpperJawScan: z.boolean().optional().default(false),
+  hasLowerJawScan: z.boolean().optional().default(false),
+  hasBiteScan: z.boolean().optional().default(false),
+  hasBiteScan2: z.boolean().optional().default(false),
 });
 
 export type OrderPayload = z.infer<typeof orderSchema>;

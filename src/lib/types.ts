@@ -37,6 +37,10 @@ export interface OrderFormData {
   hasRetractedImage: boolean;
   /** Set when a smile photo is attached */
   hasSmileImage: boolean;
+  hasUpperJawScan: boolean;
+  hasLowerJawScan: boolean;
+  hasBiteScan: boolean;
+  hasBiteScan2: boolean;
 }
 
 export const EMPTY_ORDER: OrderFormData = {
@@ -57,4 +61,8 @@ export const EMPTY_ORDER: OrderFormData = {
   contactPhone: "",
   hasRetractedImage: false,
   hasSmileImage: false,
+  hasUpperJawScan: false,
+  hasLowerJawScan: false,
+  hasBiteScan: false,
+  hasBiteScan2: false,
 };

@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_STL_BYTES = 50 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -17,6 +18,12 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/heic",
   "image/heif",
 ]);
+
+type MailAttachment = {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+};
 
 function getGmailTransport() {
   const user = process.env.GMAIL_USER?.trim().replace(/^["']|["']$/g, "");
@@ -35,7 +42,7 @@ function getGmailTransport() {
   });
 }
 
-function extensionFor(type: string, fallbackName: string) {
+function extensionForImage(type: string, fallbackName: string) {
   if (type === "image/png") return "png";
   if (type === "image/webp") return "webp";
   if (type === "image/heic" || type === "image/heif") return "heic";
@@ -46,11 +53,35 @@ function extensionFor(type: string, fallbackName: string) {
   return "jpg";
 }
 
+function scanExt(file: File): "stl" | "ply" | null {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".stl")) return "stl";
+  if (name.endsWith(".ply")) return "ply";
+  const type = file.type.toLowerCase();
+  if (
+    type === "model/stl" ||
+    type === "application/sla" ||
+    type === "application/vnd.ms-pki.stl"
+  ) {
+    return "stl";
+  }
+  if (type === "model/ply" || type === "application/ply") return "ply";
+  return null;
+}
+
+function isScanFile(file: File) {
+  return scanExt(file) != null;
+}
+
+function asFile(value: FormDataEntryValue | null): File | null {
+  return value instanceof File && value.size > 0 ? value : null;
+}
+
 async function readImageAttachment(
   file: File | null,
   label: string,
-): Promise<{ filename: string; content: Buffer; contentType: string } | null> {
-  if (!file || file.size === 0) return null;
+): Promise<MailAttachment | null> {
+  if (!file) return null;
   if (!ALLOWED_IMAGE_TYPES.has(file.type) && !file.type.startsWith("image/")) {
     throw new Error(`Formati i fotos (${label}) nuk mbështetet.`);
   }
@@ -58,11 +89,31 @@ async function readImageAttachment(
     throw new Error(`Fotoja (${label}) duhet të jetë ≤ 5 MB.`);
   }
   const buffer = Buffer.from(await file.arrayBuffer());
-  const ext = extensionFor(file.type, file.name);
+  const ext = extensionForImage(file.type, file.name);
   return {
     filename: `${label}.${ext}`,
     content: buffer,
     contentType: file.type || "image/jpeg",
+  };
+}
+
+async function readStlAttachment(
+  file: File | null,
+  label: string,
+): Promise<MailAttachment | null> {
+  if (!file) return null;
+  const ext = scanExt(file);
+  if (!ext) {
+    throw new Error(`Skedari (${label}) duhet të jetë .STL ose .PLY.`);
+  }
+  if (file.size > MAX_STL_BYTES) {
+    throw new Error(`Skanimi (${label}) duhet të jetë ≤ 50 MB.`);
+  }
+  const buffer = Buffer.from(await file.arrayBuffer());
+  return {
+    filename: `${label}.${ext}`,
+    content: buffer,
+    contentType: ext === "ply" ? "model/ply" : "model/stl",
   };
 }
 
@@ -72,6 +123,10 @@ export async function POST(request: Request) {
     let body: unknown;
     let retractedFile: File | null = null;
     let smileFile: File | null = null;
+    let upperJawFile: File | null = null;
+    let lowerJawFile: File | null = null;
+    let biteFile: File | null = null;
+    let bite2File: File | null = null;
 
     if (contentType.includes("multipart/form-data")) {
       const form = await request.formData();
@@ -83,18 +138,25 @@ export async function POST(request: Request) {
         );
       }
       body = JSON.parse(raw);
-      const retracted = form.get("retractedImage");
-      const smile = form.get("smileImage");
-      retractedFile = retracted instanceof File ? retracted : null;
-      smileFile = smile instanceof File ? smile : null;
+      retractedFile = asFile(form.get("retractedImage"));
+      smileFile = asFile(form.get("smileImage"));
+      upperJawFile = asFile(form.get("upperJawScan"));
+      lowerJawFile = asFile(form.get("lowerJawScan"));
+      biteFile = asFile(form.get("biteScan"));
+      bite2File = asFile(form.get("biteScan2"));
     } else {
       body = await request.json();
     }
 
+    const bodyData = body as OrderFormData;
     const parsed = orderSchema.safeParse({
       ...(body as object),
-      hasRetractedImage: Boolean(retractedFile) || Boolean((body as OrderFormData)?.hasRetractedImage),
-      hasSmileImage: Boolean(smileFile) || Boolean((body as OrderFormData)?.hasSmileImage),
+      hasRetractedImage: Boolean(retractedFile) || Boolean(bodyData?.hasRetractedImage),
+      hasSmileImage: Boolean(smileFile) || Boolean(bodyData?.hasSmileImage),
+      hasUpperJawScan: Boolean(upperJawFile) || Boolean(bodyData?.hasUpperJawScan),
+      hasLowerJawScan: Boolean(lowerJawFile) || Boolean(bodyData?.hasLowerJawScan),
+      hasBiteScan: Boolean(biteFile) || Boolean(bodyData?.hasBiteScan),
+      hasBiteScan2: Boolean(bite2File) || Boolean(bodyData?.hasBiteScan2),
     });
 
     if (!parsed.success) {
@@ -104,16 +166,30 @@ export async function POST(request: Request) {
       );
     }
 
-    const retractedAttachment = await readImageAttachment(
-      retractedFile,
-      "retracted",
-    );
-    const smileAttachment = await readImageAttachment(smileFile, "smile");
+    const [
+      retractedAttachment,
+      smileAttachment,
+      upperJawAttachment,
+      lowerJawAttachment,
+      biteAttachment,
+      bite2Attachment,
+    ] = await Promise.all([
+      readImageAttachment(retractedFile, "retracted"),
+      readImageAttachment(smileFile, "smile"),
+      readStlAttachment(upperJawFile, "upper-jaw-scan"),
+      readStlAttachment(lowerJawFile, "lower-jaw-scan"),
+      readStlAttachment(biteFile, "bite-scan"),
+      readStlAttachment(bite2File, "bite-scan-2"),
+    ]);
 
     const data: OrderFormData = {
       ...(parsed.data as OrderFormData),
       hasRetractedImage: Boolean(retractedAttachment),
       hasSmileImage: Boolean(smileAttachment),
+      hasUpperJawScan: Boolean(upperJawAttachment),
+      hasLowerJawScan: Boolean(lowerJawAttachment),
+      hasBiteScan: Boolean(biteAttachment),
+      hasBiteScan2: Boolean(bite2Attachment),
     };
 
     const blob = await pdf(<OrderPdf data={data} />).toBlob();
@@ -126,14 +202,22 @@ export async function POST(request: Request) {
     const labTo = process.env.LAB_EMAIL?.trim() || "hysen.stublla@gmail.com";
     const fromName = process.env.GMAIL_FROM_NAME?.trim() || "EMI Dental Lab";
 
+    const fileAttachments = [
+      retractedAttachment,
+      smileAttachment,
+      upperJawAttachment,
+      lowerJawAttachment,
+      biteAttachment,
+      bite2Attachment,
+    ].filter(Boolean) as MailAttachment[];
+
     const attachments = [
       {
         filename,
         content: buffer,
         contentType: "application/pdf",
       },
-      ...(retractedAttachment ? [retractedAttachment] : []),
-      ...(smileAttachment ? [smileAttachment] : []),
+      ...fileAttachments,
     ];
 
     if (!transporter) {
@@ -142,7 +226,7 @@ export async function POST(request: Request) {
           bytes: buffer.length,
           filename,
           to: labTo,
-          photos: attachments.length - 1,
+          files: fileAttachments.length,
         });
         return NextResponse.json({
           ok: true,
@@ -172,13 +256,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[send-order]", err);
-    if (err instanceof Error && /≤ 5 MB|nuk mbështetet/i.test(err.message)) {
+    if (
+      err instanceof Error &&
+      /≤ 5 MB|≤ 50 MB|nuk mbështetet|duhet të jetë \.STL|duhet të jetë \.STL ose \.PLY/i.test(err.message)
+    ) {
       return NextResponse.json({ ok: false, error: err.message }, { status: 400 });
     }
     const message =
       err instanceof Error && /Invalid login|Username and Password not accepted/i.test(err.message)
         ? "Gmail login dështoi — kontrolloni GMAIL_USER dhe App Password."
-        : "Nuk u gjenerua ose u dërgua PDF-ja.";
+        : err instanceof Error && /Message size exceeds|attachment/i.test(err.message)
+          ? "Bashkangjitjet janë shumë të mëdha për email (Gmail ~25 MB gjithsej)."
+          : "Nuk u gjenerua ose u dërgua PDF-ja.";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

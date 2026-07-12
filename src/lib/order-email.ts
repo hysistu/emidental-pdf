@@ -42,8 +42,30 @@ export function buildOrderEmailHtml(data: OrderFormData) {
   ]
     .filter(Boolean)
     .join(", ");
+  const scans = [
+    data.hasUpperJawScan ? "Upper jaw" : "",
+    data.hasLowerJawScan ? "Lower jaw" : "",
+    data.hasBiteScan ? "Bite" : "",
+    data.hasBiteScan2 ? "Bite 2" : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
   const delivery = data.deliveryDate || "Standarde (5 ditë)";
-  const teethSplitRows = teethSplit.map((line) => row(line.split(":")[0] ?? "Dhëmbët", line.includes(":") ? line.slice(line.indexOf(":") + 1).trim() : line)).join("");
+  const teethSplitRows = teethSplit
+    .map((line) =>
+      row(
+        line.split(":")[0] ?? "Dhëmbët",
+        line.includes(":") ? line.slice(line.indexOf(":") + 1).trim() : line,
+      ),
+    )
+    .join("");
+  const attachmentNote = [
+    "Formular PDF",
+    photos ? `foto: ${photos}` : "",
+    scans ? `STL/PLY: ${scans}` : "",
+  ]
+    .filter(Boolean)
+    .join(" + ");
 
   return `<!DOCTYPE html>
 <html lang="sq">
@@ -110,6 +132,7 @@ export function buildOrderEmailHtml(data: OrderFormData) {
                 ${row("Ngjyra e dhëmbit", data.toothColor)}
                 ${row("Ngjyra e kultit", data.stumpShade)}
                 ${row("Foto", photos)}
+                ${row("Skanime (STL/PLY)", scans)}
                 ${row("Telefoni", data.contactPhone)}
                 ${row("Email", data.contactEmail)}
               </table>
@@ -142,11 +165,7 @@ export function buildOrderEmailHtml(data: OrderFormData) {
                       📎 Bashkangjitjet
                     </p>
                     <p style="margin:0;font-size:13px;line-height:1.5;color:#4a5562;">
-                      Formular PDF${
-                        photos
-                          ? ` + foto: ${escapeHtml(photos)}`
-                          : ""
-                      }. Hapni bashkangjitjet për detajet e plota.
+                      ${escapeHtml(attachmentNote)}. Hapni bashkangjitjet për detajet e plota.
                     </p>
                   </td>
                 </tr>
@@ -194,6 +213,14 @@ export function buildOrderEmailText(data: OrderFormData) {
   ]
     .filter(Boolean)
     .join(", ");
+  const scans = [
+    data.hasUpperJawScan ? "Upper jaw" : "",
+    data.hasLowerJawScan ? "Lower jaw" : "",
+    data.hasBiteScan ? "Bite" : "",
+    data.hasBiteScan2 ? "Bite 2" : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return [
     `Porosi e re — EMI Dental Lab`,
@@ -209,6 +236,7 @@ export function buildOrderEmailText(data: OrderFormData) {
     data.toothColor ? `Ngjyra: ${data.toothColor}` : "",
     data.stumpShade ? `Ngjyra e kultit: ${data.stumpShade}` : "",
     photos ? `Foto: ${photos}` : "",
+    scans ? `Skanime STL/PLY: ${scans}` : "",
     data.contactPhone ? `Telefoni: ${data.contactPhone}` : "",
     data.contactEmail ? `Email: ${data.contactEmail}` : "",
     data.characterizations ? `\nShënime:\n${data.characterizations}` : "",

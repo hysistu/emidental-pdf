@@ -358,14 +358,25 @@ export function OrderPdf({ data }: { data: OrderFormData }) {
           <Text style={styles.sectionTitle}>UDHËZIME SPECIFIKE</Text>
         </View>
         <Text style={styles.instruction}>
-          {data.hasRetractedImage || data.hasSmileImage
-            ? `Foto të bashkangjitura: ${[
-                data.hasRetractedImage ? "Retracted" : null,
-                data.hasSmileImage ? "Smile" : null,
-              ]
-                .filter(Boolean)
-                .join(", ")}`
-            : `Ju lutemi dërgoni foto ose modele studimi në: ${LAB.email}`}
+          {(() => {
+            const photos = [
+              data.hasRetractedImage ? "Retracted" : null,
+              data.hasSmileImage ? "Smile" : null,
+            ].filter(Boolean);
+            const scans = [
+              data.hasUpperJawScan ? "Upper jaw" : null,
+              data.hasLowerJawScan ? "Lower jaw" : null,
+              data.hasBiteScan ? "Bite" : null,
+              data.hasBiteScan2 ? "Bite 2" : null,
+            ].filter(Boolean);
+            const parts = [
+              photos.length ? `Foto: ${photos.join(", ")}` : null,
+              scans.length ? `STL/PLY: ${scans.join(", ")}` : null,
+            ].filter(Boolean);
+            return parts.length
+              ? `Bashkangjitjet: ${parts.join(" · ")}`
+              : `Ju lutemi dërgoni foto ose modele studimi në: ${LAB.email}`;
+          })()}
         </Text>
         <Text style={styles.label}>Karakterizimet</Text>
         <View style={styles.notes}>

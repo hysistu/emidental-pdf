@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ToothChart } from "./ToothChart";
 import { ImageUploadField, IMAGE_MAX_BYTES } from "./ImageUploadField";
+import { StlUploadField, STL_MAX_BYTES } from "./StlUploadField";
 import { EMPTY_ORDER, type MaterialKey, type OrderFormData } from "@/lib/types";
 import { MATERIAL_OPTIONS, SHADE_PRESETS, exclusiveKeysForSet } from "@/lib/constants";
 import { orderSchema } from "@/lib/schema";
@@ -106,6 +107,10 @@ export function OrderForm() {
   }));
   const [retractedImage, setRetractedImage] = useState<File | null>(null);
   const [smileImage, setSmileImage] = useState<File | null>(null);
+  const [upperJawScan, setUpperJawScan] = useState<File | null>(null);
+  const [lowerJawScan, setLowerJawScan] = useState<File | null>(null);
+  const [biteScan, setBiteScan] = useState<File | null>(null);
+  const [biteScan2, setBiteScan2] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -163,11 +168,27 @@ export function OrderForm() {
     if (smileImage && smileImage.size > IMAGE_MAX_BYTES) {
       imageErrors.smileImage = "Fotoja e buzëqeshjes duhet ≤ 5 MB";
     }
+    if (upperJawScan && upperJawScan.size > STL_MAX_BYTES) {
+      imageErrors.upperJawScan = "Upper jaw scan duhet ≤ 50 MB";
+    }
+    if (lowerJawScan && lowerJawScan.size > STL_MAX_BYTES) {
+      imageErrors.lowerJawScan = "Lower jaw scan duhet ≤ 50 MB";
+    }
+    if (biteScan && biteScan.size > STL_MAX_BYTES) {
+      imageErrors.biteScan = "Bite scan duhet ≤ 50 MB";
+    }
+    if (biteScan2 && biteScan2.size > STL_MAX_BYTES) {
+      imageErrors.biteScan2 = "Bite scan 2 duhet ≤ 50 MB";
+    }
 
     const payload: OrderFormData = {
       ...data,
       hasRetractedImage: Boolean(retractedImage),
       hasSmileImage: Boolean(smileImage),
+      hasUpperJawScan: Boolean(upperJawScan),
+      hasLowerJawScan: Boolean(lowerJawScan),
+      hasBiteScan: Boolean(biteScan),
+      hasBiteScan2: Boolean(biteScan2),
     };
 
     const parsed = orderSchema.safeParse(payload);
@@ -194,6 +215,10 @@ export function OrderForm() {
         formData.append("order", JSON.stringify(parsed.data));
         if (retractedImage) formData.append("retractedImage", retractedImage);
         if (smileImage) formData.append("smileImage", smileImage);
+        if (upperJawScan) formData.append("upperJawScan", upperJawScan);
+        if (lowerJawScan) formData.append("lowerJawScan", lowerJawScan);
+        if (biteScan) formData.append("biteScan", biteScan);
+        if (biteScan2) formData.append("biteScan2", biteScan2);
 
         const res = await fetch("/api/send-order", {
           method: "POST",
@@ -210,6 +235,10 @@ export function OrderForm() {
         setData({ ...EMPTY_ORDER, acceptanceDate: todayISO() });
         setRetractedImage(null);
         setSmileImage(null);
+        setUpperJawScan(null);
+        setLowerJawScan(null);
+        setBiteScan(null);
+        setBiteScan2(null);
         setErrors({});
         formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       } catch (err) {
@@ -491,6 +520,74 @@ export function OrderForm() {
             }}
             error={errors.smileImage}
           />
+        </div>
+
+        <div>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+            Skanime STL / PLY
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <StlUploadField
+              label="Upper jaw scan"
+              hint="Skandimi i nofullës së sipërme"
+              file={upperJawScan}
+              onChange={(file) => {
+                setUpperJawScan(file);
+                setErrors((prev) => {
+                  if (!prev.upperJawScan) return prev;
+                  const next = { ...prev };
+                  delete next.upperJawScan;
+                  return next;
+                });
+              }}
+              error={errors.upperJawScan}
+            />
+            <StlUploadField
+              label="Lower jaw scan"
+              hint="Skandimi i nofullës së poshtme"
+              file={lowerJawScan}
+              onChange={(file) => {
+                setLowerJawScan(file);
+                setErrors((prev) => {
+                  if (!prev.lowerJawScan) return prev;
+                  const next = { ...prev };
+                  delete next.lowerJawScan;
+                  return next;
+                });
+              }}
+              error={errors.lowerJawScan}
+            />
+            <StlUploadField
+              label="Bite scan"
+              hint="Skandimi i kafshimit"
+              file={biteScan}
+              onChange={(file) => {
+                setBiteScan(file);
+                setErrors((prev) => {
+                  if (!prev.biteScan) return prev;
+                  const next = { ...prev };
+                  delete next.biteScan;
+                  return next;
+                });
+              }}
+              error={errors.biteScan}
+            />
+            <StlUploadField
+              label="Bite scan 2"
+              hint="Skandimi i dytë i kafshimit (opsional)"
+              file={biteScan2}
+              onChange={(file) => {
+                setBiteScan2(file);
+                setErrors((prev) => {
+                  if (!prev.biteScan2) return prev;
+                  const next = { ...prev };
+                  delete next.biteScan2;
+                  return next;
+                });
+              }}
+              error={errors.biteScan2}
+            />
+          </div>
         </div>
 
         <div>
