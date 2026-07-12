@@ -6,6 +6,7 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import { LAB, MATERIAL_LABELS, UPPER_TEETH, LOWER_TEETH } from "@/lib/constants";
+import { formatTeethSummary } from "@/lib/teeth";
 import type { OrderFormData } from "@/lib/types";
 
 const blue = "#1B6FB5";
@@ -98,6 +99,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
   },
   toothSelected: {
     backgroundColor: blue,
@@ -110,6 +112,14 @@ const styles = StyleSheet.create({
   toothTextSelected: {
     color: "#fff",
     fontFamily: "Helvetica-Bold",
+  },
+  toothBridgeDot: {
+    position: "absolute",
+    top: 1,
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "#F59E0B",
   },
   materialsGrid: {
     flexDirection: "row",
@@ -171,9 +181,18 @@ function Field({
   );
 }
 
-function ToothCell({ n, selected }: { n: number; selected: boolean }) {
+function ToothCell({
+  n,
+  selected,
+  bridged,
+}: {
+  n: number;
+  selected: boolean;
+  bridged: boolean;
+}) {
   return (
     <View style={[styles.tooth, selected ? styles.toothSelected : {}]}>
+      {bridged ? <View style={styles.toothBridgeDot} /> : null}
       <Text style={[styles.toothText, selected ? styles.toothTextSelected : {}]}>
         {n}
       </Text>
@@ -183,10 +202,15 @@ function ToothCell({ n, selected }: { n: number; selected: boolean }) {
 
 export function OrderPdf({ data }: { data: OrderFormData }) {
   const selected = new Set(data.selectedTeeth);
+  const bridged = new Set((data.bridges ?? []).flat());
   const materials = new Set(data.materials);
   const activeMaterials = (
     Object.keys(MATERIAL_LABELS) as Array<keyof typeof MATERIAL_LABELS>
   ).filter((key) => materials.has(key));
+  const summaryLines = formatTeethSummary(
+    data.selectedTeeth,
+    data.bridges ?? [],
+  );
 
   return (
     <Document>
@@ -245,20 +269,46 @@ export function OrderPdf({ data }: { data: OrderFormData }) {
         </Text>
         <View style={styles.toothRow}>
           {UPPER_TEETH.map((n) => (
-            <ToothCell key={n} n={n} selected={selected.has(n)} />
+            <ToothCell
+              key={n}
+              n={n}
+              selected={selected.has(n)}
+              bridged={bridged.has(n)}
+            />
           ))}
         </View>
         <View style={styles.toothRow}>
           {LOWER_TEETH.map((n) => (
-            <ToothCell key={n} n={n} selected={selected.has(n)} />
+            <ToothCell
+              key={n}
+              n={n}
+              selected={selected.has(n)}
+              bridged={bridged.has(n)}
+            />
           ))}
         </View>
-        <Text style={{ fontSize: 8, color: grey, marginTop: 4, marginBottom: 6 }}>
+        <Text style={{ fontSize: 8, color: grey, marginTop: 4, marginBottom: 2 }}>
           Dhëmbët e zgjedhur:{" "}
           {data.selectedTeeth.length
             ? [...data.selectedTeeth].sort((a, b) => a - b).join(", ")
             : "—"}
         </Text>
+        {summaryLines.length > 0 ? (
+          summaryLines.map((line, i) => (
+            <Text
+              key={line}
+              style={{
+                fontSize: 8,
+                color: line.startsWith("Urë") ? "#B45309" : grey,
+                marginBottom: i === summaryLines.length - 1 ? 6 : 2,
+              }}
+            >
+              {line}
+            </Text>
+          ))
+        ) : (
+          <View style={{ marginBottom: 6 }} />
+        )}
 
         <View style={styles.sectionBar}>
           <Text style={styles.sectionTitle}>MATERIALET & RESTAURIMI</Text>
@@ -276,6 +326,25 @@ export function OrderPdf({ data }: { data: OrderFormData }) {
             ))}
           </View>
         )}
+        {summaryLines.some((l) => l.startsWith("Urë")) ? (
+          <View style={{ marginTop: 6, marginBottom: 2 }}>
+            <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: "#B45309", marginBottom: 2 }}>
+              Dizajn — ndarja Solo / Urë
+            </Text>
+            {summaryLines.map((line) => (
+              <Text
+                key={`design-${line}`}
+                style={{
+                  fontSize: 8,
+                  color: line.startsWith("Urë") ? "#B45309" : grey,
+                  marginBottom: 1,
+                }}
+              >
+                {line}
+              </Text>
+            ))}
+          </View>
+        ) : null}
         <View style={[styles.row, { marginTop: 8 }]}>
           <Field label="Ngjyra e dhëmbit" value={data.toothColor || "—"} />
           <Field
@@ -289,7 +358,14 @@ export function OrderPdf({ data }: { data: OrderFormData }) {
           <Text style={styles.sectionTitle}>UDHËZIME SPECIFIKE</Text>
         </View>
         <Text style={styles.instruction}>
-          Ju lutemi dërgoni foto ose modele studimi në: {LAB.email}
+          {data.hasRetractedImage || data.hasSmileImage
+            ? `Foto të bashkangjitura: ${[
+                data.hasRetractedImage ? "Retracted" : null,
+                data.hasSmileImage ? "Smile" : null,
+              ]
+                .filter(Boolean)
+                .join(", ")}`
+            : `Ju lutemi dërgoni foto ose modele studimi në: ${LAB.email}`}
         </Text>
         <Text style={styles.label}>Karakterizimet</Text>
         <View style={styles.notes}>

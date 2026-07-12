@@ -1,4 +1,5 @@
 import { LAB, MATERIAL_LABELS } from "@/lib/constants";
+import { formatTeethSummary } from "@/lib/teeth";
 import type { OrderFormData } from "@/lib/types";
 
 function escapeHtml(value: string) {
@@ -34,7 +35,15 @@ export function buildOrderEmailHtml(data: OrderFormData) {
     .join(", ");
 
   const teeth = [...data.selectedTeeth].sort((a, b) => a - b).join(", ");
+  const teethSplit = formatTeethSummary(data.selectedTeeth, data.bridges ?? []);
+  const photos = [
+    data.hasRetractedImage ? "Retracted" : "",
+    data.hasSmileImage ? "Smile" : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
   const delivery = data.deliveryDate || "Standarde (5 ditë)";
+  const teethSplitRows = teethSplit.map((line) => row(line.split(":")[0] ?? "Dhëmbët", line.includes(":") ? line.slice(line.indexOf(":") + 1).trim() : line)).join("");
 
   return `<!DOCTYPE html>
 <html lang="sq">
@@ -96,9 +105,11 @@ export function buildOrderEmailHtml(data: OrderFormData) {
                 ${row("Data e pranimit", data.acceptanceDate)}
                 ${row("Data e dorëzimit", delivery)}
                 ${row("Dhëmbët", teeth)}
+                ${teethSplitRows}
                 ${row("Materialet", materials || "Dizajn standard")}
                 ${row("Ngjyra e dhëmbit", data.toothColor)}
                 ${row("Ngjyra e kultit", data.stumpShade)}
+                ${row("Foto", photos)}
                 ${row("Telefoni", data.contactPhone)}
                 ${row("Email", data.contactEmail)}
               </table>
@@ -128,10 +139,14 @@ export function buildOrderEmailHtml(data: OrderFormData) {
                 <tr>
                   <td style="padding:16px 18px;">
                     <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#145a94;">
-                      📎 Formular PDF i bashkangjitur
+                      📎 Bashkangjitjet
                     </p>
                     <p style="margin:0;font-size:13px;line-height:1.5;color:#4a5562;">
-                      Hapni bashkangjitjen për formularin e plotë të porosisë (i njëjti format si laboratori).
+                      Formular PDF${
+                        photos
+                          ? ` + foto: ${escapeHtml(photos)}`
+                          : ""
+                      }. Hapni bashkangjitjet për detajet e plota.
                     </p>
                   </td>
                 </tr>
@@ -172,6 +187,14 @@ export function buildOrderEmailText(data: OrderFormData) {
     .filter(Boolean)
     .join(", ");
 
+  const teethSplit = formatTeethSummary(data.selectedTeeth, data.bridges ?? []);
+  const photos = [
+    data.hasRetractedImage ? "Retracted" : "",
+    data.hasSmileImage ? "Smile" : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   return [
     `Porosi e re — EMI Dental Lab`,
     ``,
@@ -181,9 +204,11 @@ export function buildOrderEmailText(data: OrderFormData) {
     `Data e pranimit: ${data.acceptanceDate}`,
     `Data e dorëzimit: ${data.deliveryDate || "Standarde (5 ditë)"}`,
     `Dhëmbët: ${[...data.selectedTeeth].sort((a, b) => a - b).join(", ")}`,
+    ...teethSplit,
     `Materialet: ${materials || "Dizajn standard"}`,
     data.toothColor ? `Ngjyra: ${data.toothColor}` : "",
     data.stumpShade ? `Ngjyra e kultit: ${data.stumpShade}` : "",
+    photos ? `Foto: ${photos}` : "",
     data.contactPhone ? `Telefoni: ${data.contactPhone}` : "",
     data.contactEmail ? `Email: ${data.contactEmail}` : "",
     data.characterizations ? `\nShënime:\n${data.characterizations}` : "",

@@ -25,12 +25,18 @@ export interface OrderFormData {
   acceptanceDate: string;
   deliveryDate: string;
   selectedTeeth: number[];
+  /** Each bridge is a group of 2+ tooth numbers connected as an urë */
+  bridges: number[][];
   materials: MaterialKey[];
   toothColor: string;
   stumpShade: string;
   characterizations: string;
   contactEmail: string;
   contactPhone: string;
+  /** Set when a retracted photo is attached (file itself is not stored here) */
+  hasRetractedImage: boolean;
+  /** Set when a smile photo is attached */
+  hasSmileImage: boolean;
 }
 
 export const EMPTY_ORDER: OrderFormData = {
@@ -42,10 +48,13 @@ export const EMPTY_ORDER: OrderFormData = {
   acceptanceDate: "",
   deliveryDate: "",
   selectedTeeth: [],
+  bridges: [],
   materials: [],
   toothColor: "",
   stumpShade: "",
   characterizations: "",
   contactEmail: "",
   contactPhone: "",
+  hasRetractedImage: false,
+  hasSmileImage: false,
 };

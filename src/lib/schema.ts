@@ -35,12 +35,15 @@ export const orderSchema = z.object({
   acceptanceDate: z.string().min(1, "Zgjidhni datën e pranimit"),
   deliveryDate: z.string().optional().default(""),
   selectedTeeth: z.array(z.number()).min(1, "Zgjidhni të paktën një dhëmb"),
+  bridges: z.array(z.array(z.number())).default([]),
   materials: z.array(z.enum(materialKeys)).default([]),
   toothColor: z.string().optional().default(""),
   stumpShade: z.string().optional().default(""),
   characterizations: z.string().optional().default(""),
   contactEmail: optionalEmail,
   contactPhone: z.string().optional().default(""),
+  hasRetractedImage: z.boolean().optional().default(false),
+  hasSmileImage: z.boolean().optional().default(false),
 });
 
 export type OrderPayload = z.infer<typeof orderSchema>;

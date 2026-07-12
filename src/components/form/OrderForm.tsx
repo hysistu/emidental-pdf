@@ -3,8 +3,9 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ToothChart } from "./ToothChart";
+import { ImageUploadField, IMAGE_MAX_BYTES } from "./ImageUploadField";
 import { EMPTY_ORDER, type MaterialKey, type OrderFormData } from "@/lib/types";
-import { LAB, MATERIAL_OPTIONS, SHADE_PRESETS } from "@/lib/constants";
+import { MATERIAL_OPTIONS, SHADE_PRESETS } from "@/lib/constants";
 import { orderSchema } from "@/lib/schema";
 
 function todayISO() {
@@ -38,7 +39,9 @@ function Section({
         </span>
         <div>
           <h3 className="text-sm font-semibold text-[var(--ink)]">{title}</h3>
-          {hint ? <p className="mt-0.5 text-xs text-[var(--muted)]">{hint}</p> : null}
+          {hint ? (
+            <p className="mt-0.5 text-xs text-[var(--muted)]">{hint}</p>
+          ) : null}
         </div>
       </div>
       {children}
@@ -59,10 +62,14 @@ function FieldLabel({
     <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-[var(--muted-strong)]">
       <span>{children}</span>
       {required ? (
-        <span className="text-[11px] font-normal text-red-500">e detyrueshme</span>
+        <span className="text-[11px] font-normal text-red-500">
+          e detyrueshme
+        </span>
       ) : null}
       {optional ? (
-        <span className="text-[11px] font-normal text-[var(--muted)]">opsionale</span>
+        <span className="text-[11px] font-normal text-[var(--muted)]">
+          opsionale
+        </span>
       ) : null}
     </label>
   );
@@ -97,6 +104,8 @@ export function OrderForm() {
     ...EMPTY_ORDER,
     acceptanceDate: todayISO(),
   }));
+  const [retractedImage, setRetractedImage] = useState<File | null>(null);
+  const [smileImage, setSmileImage] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -106,7 +115,10 @@ export function OrderForm() {
 
   const materialSet = useMemo(() => new Set(data.materials), [data.materials]);
 
-  const update = <K extends keyof OrderFormData>(key: K, value: OrderFormData[K]) => {
+  const update = <K extends keyof OrderFormData>(
+    key: K,
+    value: OrderFormData[K],
+  ) => {
     setData((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => {
       if (!prev[key]) return prev;
@@ -120,10 +132,14 @@ export function OrderForm() {
     }
   };
 
-  const toggleMaterial = (key: MaterialKey) => {
+  const selectMaterialInGroup = (
+    groupKeys: MaterialKey[],
+    key: MaterialKey,
+  ) => {
     const next = new Set(materialSet);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
+    for (const k of groupKeys) next.delete(k);
+    // Clicking the active option again clears it (optional fields)
+    if (!materialSet.has(key)) next.add(key);
     update("materials", [...next] as MaterialKey[]);
   };
 
@@ -138,34 +154,61 @@ export function OrderForm() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = orderSchema.safeParse(data);
-    if (!parsed.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const path = String(issue.path[0] ?? "form");
-        if (!fieldErrors[path]) fieldErrors[path] = issue.message;
+
+    const imageErrors: Record<string, string> = {};
+    if (retractedImage && retractedImage.size > IMAGE_MAX_BYTES) {
+      imageErrors.retractedImage = "Fotoja e tërhequr duhet ≤ 5 MB";
+    }
+    if (smileImage && smileImage.size > IMAGE_MAX_BYTES) {
+      imageErrors.smileImage = "Fotoja e buzëqeshjes duhet ≤ 5 MB";
+    }
+
+    const payload: OrderFormData = {
+      ...data,
+      hasRetractedImage: Boolean(retractedImage),
+      hasSmileImage: Boolean(smileImage),
+    };
+
+    const parsed = orderSchema.safeParse(payload);
+    if (!parsed.success || Object.keys(imageErrors).length) {
+      const fieldErrors: Record<string, string> = { ...imageErrors };
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) {
+          const path = String(issue.path[0] ?? "form");
+          if (!fieldErrors[path]) fieldErrors[path] = issue.message;
+        }
       }
       setErrors(fieldErrors);
       setStatus("error");
-      setMessage("Kontrolloni fushat e shënuara — vetëm pak gjëra janë të detyrueshme.");
+      setMessage(
+        "Kontrolloni fushat e shënuara — vetëm pak gjëra janë të detyrueshme.",
+      );
       scrollToError();
       return;
     }
 
     startTransition(async () => {
       try {
+        const formData = new FormData();
+        formData.append("order", JSON.stringify(parsed.data));
+        if (retractedImage) formData.append("retractedImage", retractedImage);
+        if (smileImage) formData.append("smileImage", smileImage);
+
         const res = await fetch("/api/send-order", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(parsed.data),
+          body: formData,
         });
         const json = (await res.json()) as { ok?: boolean; error?: string };
         if (!res.ok || !json.ok) {
           throw new Error(json.error || "Dërgimi dështoi");
         }
         setStatus("success");
-        setMessage("Porosia u dërgua me sukses. Do të kontaktoheni së shpejti.");
+        setMessage(
+          "Porosia u dërgua me sukses. Do të kontaktoheni së shpejti.",
+        );
         setData({ ...EMPTY_ORDER, acceptanceDate: todayISO() });
+        setRetractedImage(null);
+        setSmileImage(null);
         setErrors({});
         formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       } catch (err) {
@@ -179,7 +222,8 @@ export function OrderForm() {
     <form ref={formRef} onSubmit={onSubmit} className="space-y-10" noValidate>
       <div className="rounded-2xl border border-[var(--brand)]/15 bg-[var(--brand-soft)]/70 px-4 py-3 text-sm text-[var(--brand-dark)]">
         Plotësoni vetëm fushat e shënuara si{" "}
-        <span className="font-semibold">të detyrueshme</span>. Të tjerat mund t’i lini bosh.
+        <span className="font-semibold">të detyrueshme</span>. Të tjerat mund
+        t’i lini bosh.
       </div>
 
       <Section
@@ -193,7 +237,7 @@ export function OrderForm() {
             <TextInput
               value={data.doctorName}
               onChange={(e) => update("doctorName", e.target.value)}
-              placeholder="p.sh. Dr. Arben Krasniqi"
+              placeholder="p.sh. Dr. Enver Maloku"
               error={errors.doctorName}
               inputRef={errors.doctorName ? firstErrorRef : undefined}
               autoComplete="name"
@@ -217,7 +261,7 @@ export function OrderForm() {
             <TextInput
               value={data.patientCardNo}
               onChange={(e) => update("patientCardNo", e.target.value)}
-              placeholder="Nëse e dini"
+              placeholder="Nëse e posedoni"
               inputMode="numeric"
             />
           </div>
@@ -289,13 +333,16 @@ export function OrderForm() {
       <Section
         step={2}
         title="Cilët dhëmbë?"
-        hint="Prekni dhëmbët ose përdorni butonat e shpejtë"
+        hint="Prekni dhëmbët, pastaj «Lidh urë» për 2+ dhëmbë"
         delay={0.04}
       >
         <div data-error={errors.selectedTeeth ? "true" : undefined}>
           <ToothChart
             selected={data.selectedTeeth}
-            onChange={(teeth) => update("selectedTeeth", teeth)}
+            bridges={data.bridges}
+            onChange={(teeth, bridges) => {
+              setData((prev) => ({ ...prev, selectedTeeth: teeth, bridges }));
+            }}
           />
           {errors.selectedTeeth ? (
             <p className="mt-2 text-sm text-red-500">{errors.selectedTeeth}</p>
@@ -310,46 +357,65 @@ export function OrderForm() {
         delay={0.06}
       >
         <div className="grid gap-5 md:grid-cols-2">
-          {MATERIAL_OPTIONS.map((group) => (
-            <div key={group.group} className="space-y-2.5">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
-                {group.group}
-              </p>
-              <div className="space-y-2">
-                {group.items.map((item) => {
-                  const active = materialSet.has(item.key);
-                  return (
-                    <label
-                      key={item.key}
-                      className={[
-                        "flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 transition",
-                        active
-                          ? "border-[var(--brand)]/40 bg-[var(--brand-soft)]"
-                          : "border-[var(--line)] bg-white/60 hover:border-[var(--brand)]/25",
-                      ].join(" ")}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={active}
-                        onChange={() => toggleMaterial(item.key)}
-                        className="mt-1 size-4 accent-[var(--brand)]"
-                      />
-                      <span>
-                        <span className="block text-sm font-medium text-[var(--ink)]">
-                          {item.label}
-                        </span>
-                        {item.hint ? (
-                          <span className="mt-0.5 block text-[11px] text-[var(--muted)]">
-                            {item.hint}
+          {MATERIAL_OPTIONS.map((group) => {
+            const groupKeys = group.items.map((i) => i.key);
+            return (
+              <div
+                key={group.group}
+                className="space-y-2.5"
+                role="radiogroup"
+                aria-label={group.group}
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                  {group.group}
+                  <span className="ml-2 font-normal normal-case tracking-normal">
+                    (një zgjedhje)
+                  </span>
+                </p>
+                <div className="space-y-2">
+                  {group.items.map((item) => {
+                    const active = materialSet.has(item.key);
+                    return (
+                      <label
+                        key={item.key}
+                        className={[
+                          "flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 transition",
+                          active
+                            ? "border-[var(--brand)]/40 bg-[var(--brand-soft)]"
+                            : "border-[var(--line)] bg-white/60 hover:border-[var(--brand)]/25",
+                        ].join(" ")}
+                      >
+                        <input
+                          type="radio"
+                          name={`material-${group.group}`}
+                          checked={active}
+                          onChange={() =>
+                            selectMaterialInGroup(groupKeys, item.key)
+                          }
+                          onClick={() => {
+                            // Allow deselect when clicking the already-selected radio
+                            if (active)
+                              selectMaterialInGroup(groupKeys, item.key);
+                          }}
+                          className="mt-1 size-4 accent-[var(--brand)]"
+                        />
+                        <span>
+                          <span className="block text-sm font-medium text-[var(--ink)]">
+                            {item.label}
                           </span>
-                        ) : null}
-                      </span>
-                    </label>
-                  );
-                })}
+                          {item.hint ? (
+                            <span className="mt-0.5 block text-[11px] text-[var(--muted)]">
+                              {item.hint}
+                            </span>
+                          ) : null}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div>
@@ -397,15 +463,38 @@ export function OrderForm() {
         hint="Opsionale — por na ndihmon të ju kontaktojmë më shpejt"
         delay={0.08}
       >
-        <p className="text-sm text-[var(--brand)]">
-          Foto ose modele studimi:{" "}
-          <a
-            href={`mailto:${LAB.email}`}
-            className="font-semibold underline decoration-[var(--brand)]/30 underline-offset-2"
-          >
-            {LAB.email}
-          </a>
-        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ImageUploadField
+            label="Foto e tërhequr (retracted)"
+            hint="Dhëmbët të tërhequr me retractor"
+            file={retractedImage}
+            onChange={(file) => {
+              setRetractedImage(file);
+              setErrors((prev) => {
+                if (!prev.retractedImage) return prev;
+                const next = { ...prev };
+                delete next.retractedImage;
+                return next;
+              });
+            }}
+            error={errors.retractedImage}
+          />
+          <ImageUploadField
+            label="Foto e buzëqeshjes (smile)"
+            hint="Buzëqeshje natyrale e pacientit"
+            file={smileImage}
+            onChange={(file) => {
+              setSmileImage(file);
+              setErrors((prev) => {
+                if (!prev.smileImage) return prev;
+                const next = { ...prev };
+                delete next.smileImage;
+                return next;
+              });
+            }}
+            error={errors.smileImage}
+          />
+        </div>
 
         <div>
           <FieldLabel optional>Shënime / karakterizime</FieldLabel>
