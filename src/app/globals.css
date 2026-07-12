@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  --brand: #1b6fb5;
+  --brand-dark: #145a94;
+  --brand-soft: #e8f2fa;
+  --ink: #15202b;
+  --muted: #6b7582;
+  --muted-strong: #4a5562;
+  --line: #d5dde6;
+  --section: #e9edf2;
+  --bg: #f3f7fb;
+  --surface: rgba(255, 255, 255, 0.78);
+  --glow: rgba(27, 111, 181, 0.18);
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--brand) 28%, white);
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(1.08);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-float-soft {
+  animation: float-soft 7s ease-in-out infinite;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2.8s ease-out infinite;
+}
