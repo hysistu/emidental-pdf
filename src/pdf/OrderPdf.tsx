@@ -9,94 +9,105 @@ import { LAB, MATERIAL_LABELS, UPPER_TEETH, LOWER_TEETH } from "@/lib/constants"
 import { formatTeethSummary } from "@/lib/teeth";
 import type { OrderFormData } from "@/lib/types";
 
+/** A5 portrait: 148 × 210 mm ≈ 419.53 × 595.28 pt */
+const PAGE_W = 419.53;
+const PAGE_H = 595.28;
+/** ~8 mm margins — safe for most A5 printers */
+const MARGIN = 22;
+
 const blue = "#1B6FB5";
 const grey = "#5A6270";
 const lightGrey = "#E8EAED";
 const dark = "#1F2933";
+const amber = "#B45309";
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 28,
-    paddingBottom: 28,
-    paddingHorizontal: 32,
+    width: PAGE_W,
+    height: PAGE_H,
+    paddingTop: MARGIN,
+    paddingBottom: MARGIN + 14,
+    paddingHorizontal: MARGIN,
     fontFamily: "Helvetica",
-    fontSize: 9,
+    fontSize: 7.5,
     color: dark,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 14,
+    marginBottom: 8,
   },
   brand: {
-    fontSize: 22,
+    fontSize: 14,
     fontFamily: "Helvetica-Bold",
     color: blue,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   tagline: {
-    fontSize: 9,
+    fontSize: 7,
     color: grey,
-    marginTop: 2,
+    marginTop: 1,
   },
   sectionBar: {
     backgroundColor: lightGrey,
-    borderRadius: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    marginTop: 10,
-    marginBottom: 8,
+    borderRadius: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+    marginTop: 6,
+    marginBottom: 5,
   },
   sectionTitle: {
-    fontSize: 9,
+    fontSize: 7,
     fontFamily: "Helvetica-Bold",
     color: grey,
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   row: {
     flexDirection: "row",
     alignItems: "flex-end",
-    marginBottom: 7,
-    gap: 8,
+    marginBottom: 4,
+    gap: 5,
   },
   field: {
     flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   label: {
-    fontSize: 8,
+    fontSize: 6.5,
     color: grey,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   value: {
-    borderBottomWidth: 0.8,
+    borderBottomWidth: 0.6,
     borderBottomColor: "#9AA3AF",
-    paddingBottom: 2,
-    minHeight: 12,
-    fontSize: 10,
+    paddingBottom: 1,
+    minHeight: 10,
+    fontSize: 8,
   },
   hint: {
-    fontSize: 7,
+    fontSize: 5.5,
     color: "#9AA3AF",
     marginTop: 1,
   },
   instruction: {
-    fontSize: 8,
+    fontSize: 6.5,
     color: blue,
-    marginBottom: 6,
+    marginBottom: 3,
   },
   toothRow: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 3,
-    marginBottom: 4,
+    gap: 1.5,
+    marginBottom: 2,
   },
   tooth: {
-    width: 18,
-    height: 22,
-    borderWidth: 0.8,
+    width: 13.5,
+    height: 16,
+    borderWidth: 0.6,
     borderColor: "#CBD2D9",
-    borderRadius: 3,
+    borderRadius: 2,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
@@ -106,7 +117,7 @@ const styles = StyleSheet.create({
     borderColor: blue,
   },
   toothText: {
-    fontSize: 6,
+    fontSize: 5,
     color: grey,
   },
   toothTextSelected: {
@@ -115,48 +126,52 @@ const styles = StyleSheet.create({
   },
   toothBridgeDot: {
     position: "absolute",
-    top: 1,
-    width: 3,
-    height: 3,
-    borderRadius: 2,
+    top: 0.5,
+    width: 2.5,
+    height: 2.5,
+    borderRadius: 1.5,
     backgroundColor: "#F59E0B",
   },
   materialsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 4,
+    gap: 3,
   },
   chip: {
-    borderWidth: 0.8,
+    borderWidth: 0.6,
     borderColor: "#CBD2D9",
-    borderRadius: 3,
-    paddingVertical: 3,
-    paddingHorizontal: 6,
-    marginBottom: 3,
+    borderRadius: 2,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    marginBottom: 2,
   },
   chipActive: {
     backgroundColor: "#E8F1FA",
     borderColor: blue,
   },
   chipText: {
-    fontSize: 7.5,
+    fontSize: 6.5,
   },
   notes: {
-    borderWidth: 0.8,
+    borderWidth: 0.6,
     borderColor: "#CBD2D9",
-    borderRadius: 4,
-    minHeight: 48,
-    padding: 6,
-    marginTop: 4,
+    borderRadius: 3,
+    minHeight: 28,
+    padding: 4,
+    marginTop: 2,
+  },
+  summaryLine: {
+    fontSize: 6.5,
+    marginBottom: 1,
   },
   footer: {
     position: "absolute",
-    bottom: 18,
-    left: 32,
-    right: 32,
+    bottom: 10,
+    left: MARGIN,
+    right: MARGIN,
     flexDirection: "row",
     justifyContent: "space-between",
-    fontSize: 7,
+    fontSize: 5.5,
     color: grey,
   },
 });
@@ -173,7 +188,7 @@ function Field({
   width?: number | string;
 }) {
   return (
-    <View style={[styles.field, width ? { width, flexGrow: 0 } : {}]}>
+    <View style={[styles.field, width ? { width, flexGrow: 0, flexShrink: 0 } : {}]}>
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.value}>{value || " "}</Text>
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
@@ -200,6 +215,26 @@ function ToothCell({
   );
 }
 
+function attachmentLine(data: OrderFormData) {
+  const photos = [
+    data.hasRetractedImage ? "Retracted" : null,
+    data.hasSmileImage ? "Smile" : null,
+  ].filter(Boolean);
+  const scans = [
+    data.hasUpperJawScan ? "Upper jaw" : null,
+    data.hasLowerJawScan ? "Lower jaw" : null,
+    data.hasBiteScan ? "Bite" : null,
+    data.hasBiteScan2 ? "Bite 2" : null,
+  ].filter(Boolean);
+  const parts = [
+    photos.length ? `Foto: ${photos.join(", ")}` : null,
+    scans.length ? `STL/PLY: ${scans.join(", ")}` : null,
+  ].filter(Boolean);
+  return parts.length
+    ? `Bashkangjitjet: ${parts.join(" · ")}`
+    : `Foto/modele: ${LAB.email}`;
+}
+
 export function OrderPdf({ data }: { data: OrderFormData }) {
   const selected = new Set(data.selectedTeeth);
   const bridged = new Set((data.bridges ?? []).flat());
@@ -214,17 +249,24 @@ export function OrderPdf({ data }: { data: OrderFormData }) {
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
+      <Page size="A5" style={styles.page} wrap>
+        <View style={styles.header} fixed={false}>
           <View>
             <Text style={styles.brand}>{LAB.name}</Text>
             <Text style={styles.tagline}>{LAB.tagline}</Text>
           </View>
           <View>
-            <Text style={{ fontSize: 8, color: grey, textAlign: "right" }}>
-              Porosi digjitale
+            <Text style={{ fontSize: 6.5, color: grey, textAlign: "right" }}>
+              Porosi digjitale · A5
             </Text>
-            <Text style={{ fontSize: 8, color: blue, textAlign: "right", marginTop: 2 }}>
+            <Text
+              style={{
+                fontSize: 7,
+                color: blue,
+                textAlign: "right",
+                marginTop: 1,
+              }}
+            >
               {data.acceptanceDate}
             </Text>
           </View>
@@ -236,20 +278,20 @@ export function OrderPdf({ data }: { data: OrderFormData }) {
 
         <View style={styles.row}>
           <Field label="Emri i Doktorit" value={data.doctorName} />
-          <Field label="Telefoni" value={data.contactPhone} width={110} />
+          <Field label="Telefoni" value={data.contactPhone} width={88} />
         </View>
         <View style={styles.row}>
           <Field label="Emri i Pacientit" value={data.patientName} />
-          <Field label="Nr. kartela Pac#" value={data.patientCardNo} width={90} />
-          <Field label="Gjinia" value={data.gender || "—"} width={40} />
-          <Field label="Mosha" value={data.age} width={40} />
+          <Field label="Nr. kartela" value={data.patientCardNo} width={70} />
+          <Field label="Gjinia" value={data.gender || "—"} width={32} />
+          <Field label="Mosha" value={data.age} width={32} />
         </View>
         <View style={styles.row}>
-          <Field label="Data e pranimit" value={data.acceptanceDate} width={140} />
+          <Field label="Data e pranimit" value={data.acceptanceDate} width={100} />
           <Field
             label="Data e dorëzimit"
             value={data.deliveryDate || "Standarde (5 ditë)"}
-            hint="(koha standarde e punës 5 ditë nëse nuk jepet një datë)"
+            hint="(standarde 5 ditë nëse bosh)"
           />
         </View>
         {data.contactEmail ? (
@@ -261,10 +303,7 @@ export function OrderPdf({ data }: { data: OrderFormData }) {
         <View style={styles.sectionBar}>
           <Text style={styles.sectionTitle}>UDHËZIMET E RASTIT</Text>
         </View>
-        <Text style={styles.instruction}>
-          Njësitë e zgjedhura në hartën e dhëmbëve
-        </Text>
-        <Text style={{ fontSize: 7, color: grey, marginBottom: 4, textAlign: "center" }}>
+        <Text style={{ fontSize: 6, color: grey, marginBottom: 2, textAlign: "center" }}>
           Nr. Element.
         </Text>
         <View style={styles.toothRow}>
@@ -287,34 +326,29 @@ export function OrderPdf({ data }: { data: OrderFormData }) {
             />
           ))}
         </View>
-        <Text style={{ fontSize: 8, color: grey, marginTop: 4, marginBottom: 2 }}>
-          Dhëmbët e zgjedhur:{" "}
+        <Text style={{ fontSize: 6.5, color: grey, marginTop: 3, marginBottom: 1 }}>
+          Dhëmbët:{" "}
           {data.selectedTeeth.length
             ? [...data.selectedTeeth].sort((a, b) => a - b).join(", ")
             : "—"}
         </Text>
-        {summaryLines.length > 0 ? (
-          summaryLines.map((line, i) => (
-            <Text
-              key={line}
-              style={{
-                fontSize: 8,
-                color: line.startsWith("Urë") ? "#B45309" : grey,
-                marginBottom: i === summaryLines.length - 1 ? 6 : 2,
-              }}
-            >
-              {line}
-            </Text>
-          ))
-        ) : (
-          <View style={{ marginBottom: 6 }} />
-        )}
+        {summaryLines.map((line) => (
+          <Text
+            key={line}
+            style={[
+              styles.summaryLine,
+              { color: line.startsWith("Urë") ? amber : grey },
+            ]}
+          >
+            {line}
+          </Text>
+        ))}
 
-        <View style={styles.sectionBar}>
+        <View style={styles.sectionBar} wrap={false}>
           <Text style={styles.sectionTitle}>MATERIALET & RESTAURIMI</Text>
         </View>
         {activeMaterials.length === 0 ? (
-          <Text style={{ fontSize: 8, color: grey, marginBottom: 6 }}>
+          <Text style={{ fontSize: 6.5, color: grey, marginBottom: 4 }}>
             Nuk është specifikuar — dizajn standard
           </Text>
         ) : (
@@ -326,65 +360,26 @@ export function OrderPdf({ data }: { data: OrderFormData }) {
             ))}
           </View>
         )}
-        {summaryLines.some((l) => l.startsWith("Urë")) ? (
-          <View style={{ marginTop: 6, marginBottom: 2 }}>
-            <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: "#B45309", marginBottom: 2 }}>
-              Dizajn — ndarja Solo / Urë
-            </Text>
-            {summaryLines.map((line) => (
-              <Text
-                key={`design-${line}`}
-                style={{
-                  fontSize: 8,
-                  color: line.startsWith("Urë") ? "#B45309" : grey,
-                  marginBottom: 1,
-                }}
-              >
-                {line}
-              </Text>
-            ))}
-          </View>
-        ) : null}
-        <View style={[styles.row, { marginTop: 8 }]}>
+        <View style={[styles.row, { marginTop: 4 }]} wrap={false}>
           <Field label="Ngjyra e dhëmbit" value={data.toothColor || "—"} />
           <Field
-            label="Ngjyra e kultit punues"
+            label="Ngjyra e kultit"
             value={data.stumpShade}
-            hint="(KËRKOHET PËR E.MAX & ZR.ML)"
+            hint="(E.MAX & ZR.ML)"
           />
         </View>
 
-        <View style={styles.sectionBar}>
+        <View style={styles.sectionBar} wrap={false}>
           <Text style={styles.sectionTitle}>UDHËZIME SPECIFIKE</Text>
         </View>
-        <Text style={styles.instruction}>
-          {(() => {
-            const photos = [
-              data.hasRetractedImage ? "Retracted" : null,
-              data.hasSmileImage ? "Smile" : null,
-            ].filter(Boolean);
-            const scans = [
-              data.hasUpperJawScan ? "Upper jaw" : null,
-              data.hasLowerJawScan ? "Lower jaw" : null,
-              data.hasBiteScan ? "Bite" : null,
-              data.hasBiteScan2 ? "Bite 2" : null,
-            ].filter(Boolean);
-            const parts = [
-              photos.length ? `Foto: ${photos.join(", ")}` : null,
-              scans.length ? `STL/PLY: ${scans.join(", ")}` : null,
-            ].filter(Boolean);
-            return parts.length
-              ? `Bashkangjitjet: ${parts.join(" · ")}`
-              : `Ju lutemi dërgoni foto ose modele studimi në: ${LAB.email}`;
-          })()}
-        </Text>
+        <Text style={styles.instruction}>{attachmentLine(data)}</Text>
         <Text style={styles.label}>Karakterizimet</Text>
         <View style={styles.notes}>
-          <Text style={{ fontSize: 9, lineHeight: 1.4 }}>
+          <Text style={{ fontSize: 7.5, lineHeight: 1.35 }}>
             {data.characterizations || " "}
           </Text>
         </View>
-        <Text style={[styles.hint, { marginTop: 8 }]}>
+        <Text style={[styles.hint, { marginTop: 4 }]}>
           *Dizajni standard nëse nuk specifikohen opsionet
         </Text>
 
